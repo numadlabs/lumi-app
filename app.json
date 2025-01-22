@@ -1,7 +1,7 @@
 {
   "expo": {
-    "version": "0.8.4",
-    "runtimeVersion": "0.8.4",
+    "version": "0.8.8",
+    "runtimeVersion": "0.8.8",
     "jsEngine": "hermes",
     "scheme": "acme",
     "owner": "numad-labs",
@@ -19,7 +19,7 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 26
+            "minSdkVersion": 33
           }
         }
       ],
@@ -69,14 +69,14 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.numadLabs.amuseApp",
       "config": {
-        "googleMapsApiKey": "AIzaSyDaGtKt35bKZ7uqpArsrw7G8YeADpmuGYs"
+        "googleMapsApiKey": "AIzaSyDRmZj1kAxRzMazOVn-RNBPPuV3INqunw8"
       }
     },
     "android": {
       "package": "com.numadLabs.amuseApp",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyAR4YHRGnBXdSSm70G9GskzKntYCQkh69I"
+          "apiKey": "AIzaSyCu-Ixr9LgDblIrwqWIIbXc_HEnXJBSiPs"
         }
       }
     },
@@ -89,10 +89,16 @@
       "eas": {
         "projectId": "648167f4-9c73-40b4-8123-d4b1eeea1c63"
       },
-      "fonts": {
-        "Sora-Regular": ["./public/fonts/Sora-Regular.ttf"],
-        "Sora-Bold": ["./public/fonts/Sora-Bold.ttf"]
-      }
+      "fonts": [
+        "./src/public/fonts/Sora-Medium.otf",
+        "./src/public/fonts/Sora-Bold.otf",
+        "./src/public/fonts/Sora-ExtraBold.otf",
+        "./src/public/fonts/Sora-ExtraLight.otf",
+        "./src/public/fonts/Sora-Light.otf",
+        "./src/public/fonts/Sora-Regular.otf",
+        "./src/public/fonts/Sora-SemiBold.otf",
+        "./src/public/fonts/Sora-Thin.otf"
+      ]
     },
     "updates": {
       "url": "https://u.expo.dev/648167f4-9c73-40b4-8123-d4b1eeea1c63",
@@ -101,7 +107,7 @@
       "enabled": true,
       "requestHeaders": {
         "expo-channel-name": "production",
-        "expo-runtime-version": "0.8.4",
+        "expo-runtime-version": "0.8.8",
         "channel-name": "production"
       }
     }

@@ -1,5 +1,3 @@
-
-
 import React, { useCallback, useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,10 +13,18 @@ import * as Network from "expo-network";
 import NoInternet from "./NoInternet";
 import * as Sentry from "@sentry/react-native";
 import { SERVER_SETTING } from "@/constants/serverSettings";
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
+import { View, StyleSheet } from "react-native";
 import ErrorBoundary from "./ErrorBoundary";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import axios from "axios";
+import SplashScreenAnimated from "./SplashScreenAnimated";
+
+interface LoadingStates {
+  internet: boolean;
+  updates: boolean;
+  pushNotification: boolean;
+  location: boolean;
+  fonts: boolean;
+}
 
 // Initialize Sentry
 Sentry.init({
@@ -29,7 +35,7 @@ Sentry.init({
   },
 });
 
-// Create QueryClient
+// Create QueryClient with error handling
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -39,88 +45,91 @@ const queryClient = new QueryClient({
   },
 });
 
-// Keep SplashScreen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
-
-// Axios client setup
+// Axios client setup with interceptors
 const axiosClient = axios.create({
   baseURL: SERVER_SETTING.API_URL,
   timeout: 5000,
 });
 
-// Token checking function
-async function checkAccessToken() {
-  try {
-    const accessToken = await AsyncStorage.getItem('accessToken');
-    if (!accessToken) {
-      throw new Error('No access token');
-    }
-
-    const response = await axiosClient.post("/auth/access-token", {}, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-
-    if (response.data.success) {
-      return true;
-    } else {
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        throw new Error('No refresh token');
-      }
-
-      const refreshResponse = await axiosClient.post("/auth/refresh-token", { refreshToken });
-
-      if (refreshResponse.data.success) {
-        await AsyncStorage.setItem('accessToken', refreshResponse.data.data.auth.accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshResponse.data.data.auth.refreshToken);
-        return true;
-      } else {
-        throw new Error('Refresh failed');
-      }
-    }
-  } catch (error) {
-    console.error("Token check failed:", error);
-    return false;
-  }
-}
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    Sentry.captureException(error);
+    return Promise.reject(error);
+  },
+);
 
 // Main Layout Component
 const Layout = () => {
   const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    internet: false,
+    updates: false,
+    pushNotification: false,
+    location: false,
+    fonts: false,
+  });
 
-  const checkInternetConnection = useCallback(async () => {
-    const networkState = await Network.getNetworkStateAsync();
-    setIsConnected(networkState.isConnected);
-    return networkState.isConnected;
-  }, []);
-
+  // Load fonts
   const [fontsLoaded] = useFonts({
     Sora: require("@/public/fonts/Sora-Regular.otf"),
     SoraBold: require("@/public/fonts/Sora-Bold.otf"),
     SoraMedium: require("@/public/fonts/Sora-Medium.otf"),
     SoraSemiBold: require("@/public/fonts/Sora-SemiBold.otf"),
   });
-  const sdkOptions = {
-    dappMetadata: {
-      name: 'Demo React Native App',
-      url: 'https://yourdapp.com',
-      iconUrl: 'https://yourdapp.com/icon.png',
-      scheme: 'yourappscheme',
-    },
-  };
 
+  // Check internet connection
+  const checkInternetConnection = useCallback(async () => {
+    try {
+      const networkState = await Network.getNetworkStateAsync();
+      setIsConnected(networkState.isConnected);
+      setLoadingStates((prev) => ({
+        ...prev,
+        internet: networkState.isConnected,
+      }));
+      return networkState.isConnected;
+    } catch (error) {
+      Sentry.captureException(error);
+      setIsConnected(false);
+      return false;
+    }
+  }, []);
 
+  // Handle root view layout
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
-      await SplashScreen.hideAsync();
+      try {
+        await SplashScreen.hideAsync();
+        return <SplashScreenAnimated loadingStates={loadingStates} />;
+      } catch (error) {
+        Sentry.captureException(error);
+      }
     }
+  }, [fontsLoaded, loadingStates]);
+
+  // Initialize app
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await checkInternetConnection();
+
+        // Update fonts loading state
+        if (fontsLoaded) {
+          setLoadingStates((prev) => ({ ...prev, fonts: true }));
+        }
+      } catch (error) {
+        Sentry.captureException(error);
+      }
+    };
+
+    initializeApp();
   }, [fontsLoaded]);
 
+  // Set up internet connection checker
   useEffect(() => {
     const intervalId = setInterval(checkInternetConnection, 5000);
     return () => clearInterval(intervalId);
   }, [checkInternetConnection]);
-
 
   if (!fontsLoaded) {
     return null;
@@ -132,14 +141,11 @@ const Layout = () => {
 
   return (
     <ThirdwebProvider>
-
-   
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ErrorBoundary>
-            <View onLayout={onLayoutRootView} style={{ flex: 1 }}>
+            <View onLayout={onLayoutRootView} style={styles.container}>
               <StatusBar style="light" />
-
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -149,10 +155,8 @@ const Layout = () => {
                 }}
               >
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="restaurants/[id]" />
                 <Stack.Screen
-                  name="restaurants/[id]"
-                // options={{ presentation: "modal" }}
-                /><Stack.Screen
                   name="Menu/[id]"
                   options={{ presentation: "modal" }}
                 />
@@ -197,41 +201,13 @@ const Layout = () => {
           </ErrorBoundary>
         </AuthProvider>
       </QueryClientProvider>
-      </ThirdwebProvider>
-
+    </ThirdwebProvider>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#f8f8f8",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#333",
-  },
-  message: {
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-    color: "#666",
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });
 

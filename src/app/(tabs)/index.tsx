@@ -151,6 +151,7 @@ const Page = () => {
           >
             Featured
           </Text>
+
           {restaurantsArray?.length > 0 && (
             <View style={{ alignItems: "center", gap: 16, width }}>
               {restaurantsArray?.length > 0 && (
